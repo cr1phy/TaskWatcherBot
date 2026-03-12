@@ -1,0 +1,30 @@
+services:
+  redis:
+    image: redis:latest
+    restart: always
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - public
+      - internal
+    depends_on:
+      - redis
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .venv/
+        - action: rebuild
+          path: ./pyproject.toml
+
+networks:
+  public:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true

@@ -2,12 +2,12 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiogram import BaseMiddleware
-from aiogram.types import TelegramObject
+from aiogram.types import TelegramObject, User
 
 
 class OwnerMiddleware(BaseMiddleware):
     def __init__(self, owner_id: int) -> None:
-        self._owner_id = owner_id
+        self.owner_id = owner_id
 
     async def __call__(
         self,
@@ -15,4 +15,7 @@ class OwnerMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        return await handler(event, data)
+        user: User | None = getattr(event, "from_user", None)
+        if user and user.id == self.owner_id:
+            return await handler(event, data)
+        return
