@@ -1,4 +1,5 @@
 from os import getenv
+
 from dotenv import load_dotenv
 
 
@@ -23,3 +24,5 @@ REDIS_URL = get_required_envvar("REDIS_URL")
 TG_API_ID = int(get_required_envvar("TG_API_ID"))
 TG_API_HASH = get_required_envvar("TG_API_HASH")
 TG_SESSION = get_required_envvar("TG_SESSION")
+
+GSPRE

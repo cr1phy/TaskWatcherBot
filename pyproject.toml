@@ -1,7 +1,7 @@
 [project]
 name = "taskwatcherbot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Telegram bot for watching tasks in Cloudtext"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -10,12 +10,18 @@ dependencies = [
     "apscheduler>=3.11.2",
     "asyncpg>=0.31.0",
     "asyncpg-stubs>=0.31.2",
+    "gspread>=6.2.1",
     "pydantic>=2.12.5",
     "python-dotenv>=1.2.2",
     "qrcode>=8.2",
     "redis>=7.3.0",
-    "sqlalchemy>=2.0.48",
     "structlog>=25.5.0",
     "telethon>=1.42.0",
     "yoyo-migrations>=9.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
 ]

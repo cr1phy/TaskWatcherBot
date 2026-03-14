@@ -4,12 +4,12 @@ import re
 
 from pydantic import (
     AliasChoices,
+    BaseModel,
     ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
 )
-
-
-from pydantic import BaseModel, Field, computed_field, field_validator
-
 
 MONTHS = [
     "январь",
@@ -104,7 +104,6 @@ class GroupStudent(IdModel):
 
     @property
     def name(self) -> str:
-        # удобное внутреннее имя, в JSON не сериализуется
         return self.full_name
 
 

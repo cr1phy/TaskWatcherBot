@@ -9,6 +9,10 @@ class UserDAO:
         async with self._pool.acquire() as conn:
             return await conn.fetchrow("SELECT * FROM users WHERE tg_id = $1", tg_id)
 
+    async def get_all(self) -> list[asyncpg.Record]:
+        async with self._pool.acquire() as conn:
+            return await conn.fetch("SELECT * FROM users")
+
     async def create(self, tg_id: int, student_id: int, group_number: int) -> None:
         async with self._pool.acquire() as conn:
             await conn.execute(

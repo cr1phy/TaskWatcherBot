@@ -1,11 +1,7 @@
-from sqlalchemy.orm import Mapped, mapped_column
-
-from .base import Base
+from pydantic import BaseModel
 
 
-class User(Base):
-    __tablename__ = "users"
-
-    tg_id: Mapped[int] = mapped_column(primary_key=True)
-    student_id: Mapped[int]
-    group_number: Mapped[int]
+class User(BaseModel):
+    tg_id: int
+    student_id: int
+    group_number: int

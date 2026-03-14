@@ -1,13 +1,13 @@
 import asyncio
-from datetime import datetime
 import time
+from datetime import datetime
 from http import HTTPStatus
 from typing import Any
 from urllib.parse import unquote
 
-from aiohttp import ClientSession
 import aiohttp
 import structlog
+from aiohttp import ClientSession
 from yarl import URL
 
 from .models import Group, Journal
@@ -39,6 +39,10 @@ class CloudTextClient:
 
         await session.get("/login")
         xsrf = session.cookie_jar.filter_cookies(URL(self._base_url)).get("xsrf-token")
+        if xsrf is None:
+            await session.close()
+            raise AuthError("xsrf-token cookie not found during authentication")
+
         headers = {
             "X-XSRF-TOKEN": unquote(xsrf.value),
             "Accept": "application/json",
@@ -54,11 +58,13 @@ class CloudTextClient:
                 raise AuthError("Something went wrong with logging in")
 
         self._session = session
+        await self._logger.ainfo("cloudtext_authenticated", email=self._email)
 
     async def close(self) -> None:
         if self._session is not None:
             await self._session.close()
         self._session = None
+        await self._logger.ainfo("cloudtext_session_closed")
 
     async def _get_json(
         self,

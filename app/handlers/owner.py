@@ -2,23 +2,20 @@ import re
 
 from aiogram import Bot, Router
 from aiogram.enums import ChatAction
-from aiogram.types import ChatMemberUpdated, Message
 from aiogram.filters import IS_MEMBER, IS_NOT_MEMBER, ChatMemberUpdatedFilter, Command
-import asyncpg
-from redis import asyncio as aioredis
+from aiogram.types import ChatMemberUpdated, Message
 from telethon import TelegramClient  # type: ignore
-from telethon.tl.types import TotalList
 
 from ..config import OWNER_TGID
-from ..dao.user import UserDAO
 from ..middleware import OwnerMiddleware
+from ..services.groups import GroupRegistry
+from ..services.user import UserService
 
 
 def init_owner_router() -> Router:
-    middleware = OwnerMiddleware(OWNER_TGID)
     r = Router()
-    for _, observer in r.observers.items():
-        observer.middleware(middleware)
+    r.message.outer_middleware(OwnerMiddleware(OWNER_TGID))
+    r.my_chat_member.outer_middleware(OwnerMiddleware(OWNER_TGID))
     return r
 
 
@@ -27,16 +24,15 @@ router = init_owner_router()
 
 @router.my_chat_member(ChatMemberUpdatedFilter(IS_NOT_MEMBER >> IS_MEMBER))
 async def on_bot_joining(
-    member: ChatMemberUpdated, bot: Bot, redis: aioredis.Redis
+    member: ChatMemberUpdated, bot: Bot, groups: GroupRegistry
 ) -> None:
-    if (title := member.chat.title) and (match := re.search(r"Группа\s*(\d+)", title)):
-        group_n = match.group(1)
-        await redis.set(f"group_{group_n}", member.chat.id)
-    else:
-        await bot.send_message(
-            chat_id=member.from_user.id,
-            text="Название чата должно быть в формате 'Группа N'.",
-        )
+    if (title := member.chat.title) and (m := re.search(r"Группа\s*(\d+)", title)):
+        await groups.register(int(m.group(1)), member.chat.id)
+        return
+    await bot.send_message(
+        member.chat.id,
+        "Название чата должно быть в формате 'Группа N'.",
+    )
 
 
 @router.message(Command("parse_users"))
@@ -44,30 +40,22 @@ async def on_parse_users(
     msg: Message,
     bot: Bot,
     tg_client: TelegramClient,
-    redis: aioredis.Redis,
-    pool: asyncpg.Pool,
+    groups: GroupRegistry,
+    users: UserService,
 ) -> None:
     await msg.answer("Начинаю парсинг...")
     await bot.send_chat_action(msg.chat.id, ChatAction.TYPING)
 
-    keys: list[str] = await redis.keys("group_*")
-    if not keys:
+    all_groups = await groups.get_all()
+    if not all_groups:
         await msg.answer("Нет привязанных групп.")
         return
 
-    dao = UserDAO(pool)
-    linked = 0
-    for key in keys:
-        group_n = key.decode().split("_")[1]
-        chat_id = int(await redis.get(key))
-        participants: TotalList = await tg_client.get_participants(chat_id)
+    lines = []
+    for group_n, chat_id in all_groups.items():
+        participants = await tg_client.get_participants(chat_id)
+        total = sum(1 for p in participants if not p.bot)
+        linked = sum(1 for p in participants if not p.bot and await users.exists(p.id))
+        lines.append(f"Группа {group_n}: {linked}/{total} привязано")
 
-        for p in participants:
-            if p.bot or not p.username:
-                continue
-            tg_id = p.id
-            if not await dao.exists(tg_id):
-                continue
-            linked += 1
-
-    await msg.answer(f"Готово. Привязано: {linked}")
+    await msg.answer("\n".join(lines))
