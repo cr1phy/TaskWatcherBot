@@ -38,7 +38,7 @@ class CloudTextClient:
         session = ClientSession(base_url=self._base_url)
 
         await session.get("/login")
-        xsrf = session.cookie_jar.filter_cookies(URL(self._base_url)).get("xsrf-token")
+        xsrf = session.cookie_jar.filter_cookies(URL(self._base_url)).get("XSRF-TOKEN")
         if xsrf is None:
             await session.close()
             raise AuthError("xsrf-token cookie not found during authentication")
@@ -53,7 +53,7 @@ class CloudTextClient:
             headers=headers,
             json={"email": self._email, "password": self._password, "stage": 1},
         ) as response:
-            if response.status != HTTPStatus.ACCEPTED:
+            if response.status != HTTPStatus.OK:
                 await session.close()
                 raise AuthError("Something went wrong with logging in")
 

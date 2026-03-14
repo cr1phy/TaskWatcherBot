@@ -6,6 +6,8 @@ services:
       POSTGRES_USER: bot
       POSTGRES_PASSWORD: bot
       POSTGRES_DB: bot
+    ports:
+      - "5432:5432"
     networks:
       - internal
     volumes:
@@ -14,13 +16,15 @@ services:
   redis:
     image: redis:latest
     restart: always
+    ports:
+      - "6379:6379"
     networks:
       - internal
 
   bot:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: dev.Dockerfile
     restart: unless-stopped
     env_file:
       - .env
@@ -31,8 +35,24 @@ services:
       - postgres
       - redis
     volumes:
-      - ./session.session:/app/session.session
-      - ./mycreds.json:/app/mycreds.json
+      - type: bind
+        source: ./session.session
+        target: /app/session.session
+      - type: bind
+        source: ./mycreds.json
+        target: /app/mycreds.json
+    develop:
+      watch:
+        - action: sync
+          path: ./app
+          target: /app/app
+        - action: sync
+          path: ./migrations
+          target: /app/migrations
+        - action: rebuild
+          path: ./pyproject.toml
+        - action: rebuild
+          path: ./uv.lock
 
 networks:
   public:

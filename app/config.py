@@ -25,4 +25,5 @@ TG_API_ID = int(get_required_envvar("TG_API_ID"))
 TG_API_HASH = get_required_envvar("TG_API_HASH")
 TG_SESSION = get_required_envvar("TG_SESSION")
 
-GSPRE
+GSHEETS_CREDS_FILE = get_required_envvar("GSHEETS_CREDS_FILE")
+SPREADSHEETS_FOLDER_ID = get_required_envvar("SPREADSHEETS_FOLDER_ID")

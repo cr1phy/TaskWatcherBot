@@ -9,3 +9,6 @@ wheels/
 
 *.env
 !example.env
+
+session.session
+mycreds.json

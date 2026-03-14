@@ -16,7 +16,8 @@ def apply_migrations() -> None:
     backend = get_backend(DB_URL)
     migrations = read_migrations("migrations/")
     with backend.lock():
-        backend.apply_one(migrations)
+        to_apply = backend.to_apply(migrations)
+        backend.apply_migrations(to_apply)
 
 
 async def main() -> None:
