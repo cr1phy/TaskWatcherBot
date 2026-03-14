@@ -1,10 +1,12 @@
-import qrcode  # type: ignore
+import asyncio
+
 from aiogram import Bot, Dispatcher
+from aiogram.types import BotCommand, BotCommandScopeChat, BotCommandScopeDefault
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from yoyo import get_backend, read_migrations  # type: ignore
 
-from .config import BOT_TOKEN, DB_URL
+from .config import BOT_TOKEN, DB_URL, OWNER_TGID
 from .container import Container
 from .handlers import router
 from .jobs.notify import notify_students
@@ -17,14 +19,37 @@ def apply_migrations() -> None:
     migrations = read_migrations("migrations/")
     with backend.lock():
         to_apply = backend.to_apply(migrations)
-        backend.apply_migrations(to_apply)
+        if to_apply:
+            backend.apply_migrations(to_apply)
+
+
+async def set_bot_commands(bot: Bot) -> None:
+    await bot.set_my_commands(
+        [
+            BotCommand(command="start", description="Начать привязку"),
+            BotCommand(command="stats", description="Моя статистика по ДЗ"),
+            BotCommand(command="unlink", description="Отвязаться"),
+            BotCommand(command="help", description="Справка"),
+        ],
+        scope=BotCommandScopeDefault(),
+    )
+
+    await bot.set_my_commands(
+        [
+            BotCommand(command="admin", description="Панель владельца"),
+            BotCommand(command="links", description="Ссылки для учеников"),
+            BotCommand(command="create_sheets", description="Создать таблицы"),
+            BotCommand(command="parse_users", description="Статистика привязок"),
+        ],
+        scope=BotCommandScopeChat(chat_id=OWNER_TGID),
+    )
 
 
 async def main() -> None:
     apply_migrations()
 
     c = await Container.create()
-    scheduler = AsyncIOScheduler()
+    scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
 
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
@@ -37,28 +62,42 @@ async def main() -> None:
 
         await c.tg_client.connect()
         if not await c.tg_client.is_user_authorized():
-            qr_login = await c.tg_client.qr_login()
-            qr = qrcode.QRCode()
-            qr.add_data(qr_login.url)
-            qr.make()
-            qr.print_ascii()
-            print(
-                "Сканируй QR в Telegram → Настройки → Устройства → Подключить устройство"
+            await c.tg_client.disconnect()
+            raise RuntimeError(
+                "Telethon не авторизован. Запусти: uv run scripts/auth_telethon.py"
             )
-            await qr_login.wait()
-            print("Авторизация прошла успешно!")
 
         c.gsheets.start()
+
+        await set_bot_commands(bot)
+
+        async def warmup() -> None:
+            try:
+                await c.cloudtext.get_max_balls()
+                await bot.send_message(OWNER_TGID, "✅ Бот готов.")
+            except Exception as e:
+                await bot.send_message(OWNER_TGID, f"⚠️ Ошибка прогрева кэша: {e}")
+
+        asyncio.create_task(warmup())
 
         scheduler.add_job(
             notify_students,
             CronTrigger(day_of_week="mon", hour=10),
-            kwargs={**c.as_kwargs(), "bot": bot},
+            kwargs={
+                "bot": bot,
+                "users": c.users,
+                "groups": c.groups,
+                "cloudtext": c.cloudtext,
+            },
         )
         scheduler.add_job(
             update_sheets,
             CronTrigger(day_of_week="sun", hour=3),
-            kwargs=c.as_kwargs(),
+            kwargs={
+                "groups": c.groups,
+                "cloudtext": c.cloudtext,
+                "gsheets": c.gsheets,
+            },
         )
         scheduler.start()
 

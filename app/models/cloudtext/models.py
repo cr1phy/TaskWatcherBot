@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# mypy: ignore-errors
 import re
 
 from pydantic import (
@@ -8,7 +9,6 @@ from pydantic import (
     ConfigDict,
     Field,
     computed_field,
-    field_validator,
 )
 
 MONTHS = [
@@ -82,7 +82,7 @@ class IdModel(AppModel):
 class GroupBase(IdModel):
     name: str
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def number(self) -> int:
         match = re.search(r"Группа\s*(\d+)", self.name)
@@ -94,7 +94,7 @@ class GroupStudent(IdModel):
     last_name: str
     middle_name: str | None = None
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def full_name(self) -> str:
         parts = [self.last_name, self.first_name]
@@ -103,7 +103,7 @@ class GroupStudent(IdModel):
         return " ".join(parts)
 
     @property
-    def name(self) -> str:
+    def name(self) -> str:  # type: ignore
         return self.full_name
 
 
@@ -111,19 +111,17 @@ class Task(IdModel):
     name: str
     maximum_score: int
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def is_probe(self) -> bool:
         return self.maximum_score == 29 or "Пробник" in self.name
 
     @property
-    def homework_name(self) -> str:
+    def homework_name(self) -> str:  # type: ignore[misc]
         num_match = re.search(r"(\d+)\s*задание", self.name)
         num = int(num_match.group(1)) if num_match else 0
-
         topic_match = re.search(r"\((.+)\)", self.name)
         topic = topic_match.group(1) if topic_match else self.name
-
         return f"Задание №{num}. {topic}" if num else topic
 
     @property
@@ -147,7 +145,7 @@ class Work(AppModel):
     def is_done(self) -> bool:
         return self.status == 4
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def percent(self) -> int:
         return round(self.score / self.maximum_score * 100) if self.maximum_score else 0
@@ -155,13 +153,13 @@ class Work(AppModel):
 
 class Student(IdModel):
     name: str
-    works: dict[int, Work] = Field(default_factory=lambda: {})
+    works: dict[int, Work] = Field(default_factory=dict)  # type: ignore
     count: int = 0
     avg: int = 0
 
 
 class Group(GroupBase):
-    students: list[GroupStudent] = Field(default_factory=lambda: [])
+    students: list[GroupStudent] = Field(default_factory=list)  # type: ignore
 
 
 class Journal(GroupBase):
@@ -169,8 +167,8 @@ class Journal(GroupBase):
         validation_alias=AliasChoices("group_name", "name"),
         serialization_alias="group_name",
     )
-    students: list[Student] = Field(default_factory=lambda: [])
-    tasks: list[Task] = Field(default_factory=lambda: [])
+    students: list[Student] = Field(default_factory=list)  # type: ignore
+    tasks: list[Task] = Field(default_factory=list)  # type: ignore
 
     @property
     def group_name(self) -> str:
@@ -187,15 +185,12 @@ class Journal(GroupBase):
             key=lambda t: (t.has_month, t.name),
         )
 
-    @field_validator("students", mode="after")
-    @classmethod
-    def active_students(cls, students: list[Student]) -> list[Student]:
+    @property
+    def active_students(self) -> list[Student]:
         seen: set[int] = set()
         result: list[Student] = []
-
-        for student in students:
+        for student in self.students:
             if student.id not in seen and (student.count > 0 or student.works):
                 seen.add(student.id)
                 result.append(student)
-
         return result

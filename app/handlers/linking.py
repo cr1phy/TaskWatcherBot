@@ -1,14 +1,14 @@
 from aiogram import F, Bot, Router
 from aiogram.enums import ChatAction
-from aiogram.filters import CommandStart, StateFilter
-from aiogram.types import CallbackQuery, InlineKeyboardButton, Message
+from aiogram.filters import Command, CommandObject, CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery, InlineKeyboardButton, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from ..config import OWNER_TGID
 from ..models.cloudtext import CloudTextClient
 from ..services.user import UserService
 from ..states import LinkingState
-
 
 router = Router()
 
@@ -23,20 +23,45 @@ def match(tg_name: str, cloudtext_name: str) -> bool:
     return tg in ct or ct in tg
 
 
-@router.message(CommandStart(deep_link=True))
-async def on_start(msg: Message, state: FSMContext) -> None:
-    if msg.text and len(splitted := msg.text.split()) == 2:
-        group_n = splitted[1]
+@router.message(CommandStart())
+async def on_start(msg: Message, command: CommandObject, state: FSMContext) -> None:
+    if not msg.from_user:
+        return
+
+    if msg.from_user.id == OWNER_TGID:
         await msg.answer(
-            f"Привет, ученик из группы {group_n}! Для того, чтобы в группе работала "
-            f"статистика, мне нужно твоё ФИО или ФИ. "
-            f"<b>Важно, чтобы оно совпадало с ФИО в CloudText!</b>",
+            "<b>Панель владельца</b>\n\n"
+            "/links — ссылки для учеников\n"
+            "/create_sheets — создать таблицы\n"
+            "/parse_users — статистика привязок\n"
+            "/stats — твоя статистика (как ученик)",
             parse_mode="HTML",
         )
-        await state.set_state(LinkingState.GettingName)
-        await state.update_data({"group_n": group_n})
         return
-    await msg.answer("Я ожидаю номер группы для привязки.")
+
+    if not command.args:
+        await msg.answer(
+            "Привет! Чтобы привязаться, попроси преподавателя дать ссылку-приглашение."
+        )
+        return
+
+    group_n = command.args
+    await msg.answer(
+        f"Привет, ученик из группы {group_n}! Для того, чтобы в группе работала "
+        f"статистика, мне нужно твоё ФИО или ФИ. "
+        f"<b>Важно, чтобы оно совпадало с ФИО в CloudText!</b>",
+        parse_mode="HTML",
+    )
+    await state.set_state(LinkingState.GettingName)
+    await state.update_data({"group_n": group_n})
+
+
+@router.message(
+    StateFilter(LinkingState.GettingName), Command("stats", "help", "unlink")
+)
+async def on_command_in_state(msg: Message, state: FSMContext) -> None:
+    await state.clear()
+    await msg.answer("Привязка отменена.")
 
 
 @router.message(StateFilter(LinkingState.GettingName))
@@ -47,8 +72,7 @@ async def on_getting_name(
     cloudtext: CloudTextClient,
     users: UserService,
 ) -> None:
-    if not msg.text:
-        await msg.delete()
+    if not msg.text or not msg.from_user:
         return
 
     waiting_msg = await msg.answer("Окей! Сейчас посмотрю...")
@@ -88,7 +112,7 @@ async def on_getting_name(
     builder = InlineKeyboardBuilder()
     for s in students:
         student_in_journal = next(
-            (js for js in journal.students if js.id == s.id), None
+            (js for js in journal.students if js.name == s.full_name), None
         )
         if student_in_journal:
             done = sum(
@@ -100,12 +124,7 @@ async def on_getting_name(
         else:
             label = s.full_name
 
-        builder.add(
-            InlineKeyboardButton(
-                text=label,
-                callback_data=f"link:{s.id}",
-            )
-        )
+        builder.add(InlineKeyboardButton(text=label, callback_data=f"link:{s.id}"))
 
     await waiting_msg.edit_text(
         "Нашёл несколько совпадений, выбери себя.",
@@ -122,8 +141,34 @@ async def on_student_chosen(
     state: FSMContext,
     users: UserService,
 ) -> None:
+    if not callback.data or not callback.message:
+        return
     student_id = int(callback.data.split(":")[1])
     group_n = (await state.get_data())["group_n"]
     await users.link(callback.from_user.id, student_id, int(group_n))
-    await callback.message.edit_text("Готово! Ты привязан.")
+    if callback.message:
+        await callback.message.edit_text("Готово! Ты привязан.")  # type: ignore
     await state.clear()
+
+
+@router.message(Command("unlink"))
+async def on_unlink(msg: Message, users: UserService) -> None:
+    if not msg.from_user:
+        return
+    if not await users.exists(msg.from_user.id):
+        await msg.answer("Ты и так не привязан.")
+        return
+    await users.unlink(msg.from_user.id)
+    await msg.answer("Отвязано. Можешь привязаться заново.")
+
+
+@router.message(Command("help"))
+async def on_help(msg: Message) -> None:
+    await msg.answer(
+        "<b>Доступные команды:</b>\n"
+        "/start — начало привязки (через ссылку)\n"
+        "/stats — твоя статистика по ДЗ\n"
+        "/unlink — отвязаться\n"
+        "/help — эта справка",
+        parse_mode="HTML",
+    )

@@ -1,8 +1,10 @@
+import asyncio
+
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from ..models.cloudtext import CloudTextClient
+from ..models.cloudtext import CloudTextClient, apply_max_balls
 from ..services.user import UserService
 
 router = Router()
@@ -30,12 +32,29 @@ async def on_stats(
         await msg.answer("Группа не найдена в CloudText.")
         return
 
-    journal = await cloudtext.get_journal(ct_group.id)
-    student = next((s for s in journal.students if s.id == user.student_id), None)
+    ct_student = next((s for s in ct_group.students if s.id == user.student_id), None)
+    if not ct_student:
+        await msg.answer("Не нашёл тебя в группе.")
+        return
 
-    if not student:
+    try:
+        journal = await asyncio.wait_for(cloudtext.get_journal(ct_group.id), timeout=10)
+    except asyncio.TimeoutError:
+        await msg.answer("⏳ Бот сейчас занят, попробуй через пару минут.")
+        return
+    max_balls = await cloudtext.get_max_balls()
+    apply_max_balls(journal, max_balls)
+
+    matches = [s for s in journal.students if s.name == ct_student.full_name]
+    if not matches:
         await msg.answer("Не нашёл тебя в журнале.")
         return
+    if len(matches) > 1:
+        await msg.answer(
+            "В журнале несколько учеников с таким именем. Обратись к преподавателю."
+        )
+        return
+    student = matches[0]
 
     lines = [f"<b>Статистика {student.name}</b>\n"]
 

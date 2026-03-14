@@ -55,7 +55,7 @@ def parse_journal(data: dict[str, Any]) -> Journal:
         id=j["group"]["id"],
         name=j["group"]["name"],
         tasks=[
-            Task(id=t["id"], name=t["name"], maximum_score=t["max_ball"])
+            Task(id=t["id"], name=t["name"], maximum_score=t.get("max_ball", 0))
             for t in j["tasks"]
         ],
         students=[

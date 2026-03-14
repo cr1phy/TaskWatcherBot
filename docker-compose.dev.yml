@@ -16,10 +16,11 @@ services:
   redis:
     image: redis:latest
     restart: always
-    ports:
-      - "6379:6379"
     networks:
       - internal
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
 
   bot:
     build:
@@ -35,15 +36,11 @@ services:
       - postgres
       - redis
     volumes:
-      - type: bind
-        source: ./session.session
-        target: /app/session.session
-      - type: bind
-        source: ./mycreds.json
-        target: /app/mycreds.json
+      - ./session.session:/app/session.session
+      - ./authorized_user.json:/root/.config/gspread/authorized_user.json
     develop:
       watch:
-        - action: sync
+        - action: rebuild
           path: ./app
           target: /app/app
         - action: sync
@@ -63,3 +60,4 @@ networks:
 
 volumes:
   postgres_data:
+  redis_data:

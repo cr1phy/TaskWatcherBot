@@ -11,7 +11,7 @@ class UserDAO:
 
     async def get_all(self) -> list[asyncpg.Record]:
         async with self._pool.acquire() as conn:
-            return await conn.fetch("SELECT * FROM users")
+            return await conn.fetch("SELECT * FROM users")  # type: ignore[no-any-return]
 
     async def create(self, tg_id: int, student_id: int, group_number: int) -> None:
         async with self._pool.acquire() as conn:
@@ -21,6 +21,10 @@ class UserDAO:
                 student_id,
                 group_number,
             )
+
+    async def delete(self, tg_id: int) -> None:
+        async with self._pool.acquire() as conn:
+            await conn.execute("DELETE FROM users WHERE tg_id = $1", tg_id)
 
     async def exists(self, tg_id: int) -> bool:
         return await self.get_by_tg_id(tg_id) is not None

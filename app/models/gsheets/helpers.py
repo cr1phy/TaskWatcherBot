@@ -28,17 +28,30 @@ def copy_block_right(
     }
 
 
+def delete_rows(sheet_id: int, start_row: int, count: int) -> dict[str, Any]:
+    return {
+        "deleteDimension": {
+            "range": {
+                "sheetId": sheet_id,
+                "dimension": "ROWS",
+                "startIndex": start_row - 1,
+                "endIndex": start_row - 1 + count,
+            }
+        }
+    }
+
+
 def retry_api(
     func: Callable[..., Any],
     *args: Any,
     max_retries: int = 10,
     **kwargs: dict[str, Any],
-):
+) -> Any:
     for attempt in range(max_retries):
         try:
             return func(*args, **kwargs)
         except APIError as e:
-            if e.response.status_code == 429:
+            if e.response.status_code in (429, 503):
                 wait = min(60 * (attempt + 1), 300)
                 time.sleep(wait)
             else:

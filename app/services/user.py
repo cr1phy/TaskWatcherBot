@@ -21,3 +21,6 @@ class UserService:
 
     async def link(self, tg_id: int, student_id: int, group_number: int) -> None:
         await self._dao.create(tg_id, student_id, group_number)
+
+    async def unlink(self, tg_id: int) -> None:
+        await self._dao.delete(tg_id)

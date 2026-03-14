@@ -11,4 +11,5 @@ wheels/
 !example.env
 
 session.session
-mycreds.json
+credentials.json
+authorized_user.json

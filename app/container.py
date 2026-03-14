@@ -40,7 +40,10 @@ class Container:
             users=UserService(pool),
             groups=GroupRegistry(redis),
             cloudtext=CloudTextClient(
-                CLOUDTEXT_EMAIL, CLOUDTEXT_PASSWORD, CLOUDTEXT_BASE_URL
+                CLOUDTEXT_EMAIL,
+                CLOUDTEXT_PASSWORD,
+                CLOUDTEXT_BASE_URL,
+                redis=redis,
             ),
             gsheets=GSheetsClient(
                 GSHEETS_CREDS_FILE, SPREADSHEETS_FOLDER_ID, pool, redis

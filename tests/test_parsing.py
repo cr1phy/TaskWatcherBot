@@ -1,3 +1,5 @@
+from typing import Any
+
 from app.models.cloudtext.models import Journal
 from app.models.cloudtext.parsing import (
     apply_max_balls,

@@ -14,6 +14,24 @@ from aiogram.types import (
 logger = structlog.get_logger()
 
 
+class PrivateOnlyMiddleware(BaseMiddleware):
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+    ) -> Any:
+        if isinstance(event, Message) and event.chat.type != "private":
+            return
+        if (
+            isinstance(event, CallbackQuery)
+            and event.message
+            and event.message.chat.type != "private"
+        ):
+            return
+        return await handler(event, data)
+
+
 class OwnerMiddleware(BaseMiddleware):
     def __init__(self, owner_id: int) -> None:
         self.owner_id = owner_id

@@ -14,25 +14,35 @@ services:
   redis:
     image: redis:latest
     restart: always
+    command: redis-server --appendonly yes
     networks:
       - internal
+    volumes:
+      - redis_data:/data
 
   bot:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     restart: unless-stopped
     env_file:
       - .env
     networks:
       - public
       - internal
+    volumes:
+      - ./session.session:/app/session.session
+      - ./authorized_user.json:/root/.config/gspread/authorized_user.json
     depends_on:
       - postgres
       - redis
-    volumes:
-      - ./session.session:/app/session.session
-      - ./mycreds.json:/app/mycreds.json
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .venv/
+        - action: rebuild
+          path: ./pyproject.toml
 
 networks:
   public:
@@ -43,3 +53,4 @@ networks:
 
 volumes:
   postgres_data:
+  redis_data:
