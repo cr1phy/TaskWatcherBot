@@ -29,17 +29,6 @@ def init_owner_router() -> Router:
 router = init_owner_router()
 
 
-@router.message(Command("admin"))
-async def on_admin(msg: Message) -> None:
-    await msg.answer(
-        "<b>Панель владельца</b>\n\n"
-        "/links — ссылки для учеников\n"
-        "/create_sheets — создать таблицы\n"
-        "/parse_users — статистика привязок",
-        parse_mode="HTML",
-    )
-
-
 @router.message(Command("links"))
 async def on_links(msg: Message, cloudtext: CloudTextClient, bot: Bot) -> None:
     me = await bot.get_me()

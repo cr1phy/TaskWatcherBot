@@ -36,7 +36,7 @@ async def set_bot_commands(bot: Bot) -> None:
 
     await bot.set_my_commands(
         [
-            BotCommand(command="admin", description="Панель владельца"),
+            BotCommand(command="start", description="Старт/помощь"),
             BotCommand(command="links", description="Ссылки для учеников"),
             BotCommand(command="create_sheets", description="Создать таблицы"),
             BotCommand(command="parse_users", description="Статистика привязок"),

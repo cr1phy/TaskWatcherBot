@@ -81,7 +81,7 @@ DB_URL=postgresql://bot:bot@postgres/bot
 REDIS_URL=redis://redis
 
 # Google Sheets
-GSHEETS_CREDS_FILE=mycreds.json
+GSHEETS_CREDS_FILE=credentials.json
 SPREADSHEETS_FOLDER_ID=your_folder_id
 ```
 
@@ -124,11 +124,7 @@ docker compose up -d
 docker compose logs -f bot
 ```
 
-Вы должны увидеть:
-```
-cloudtext_authenticated  email=...
-✅ Теперь бот готов.цц
-```
+Вы должны увидеть `cloudtext_authenticated  email=...` и `✅ Бот готов.` в Telegram
 
 ## Использование
 
@@ -169,7 +165,7 @@ app/
 ├── states.py             # FSM состояния
 ├── handlers/
 │   ├── linking.py        # /start, привязка, /unlink, /help
-│   ├── owner.py          # /admin, /links, /create_sheets
+│   ├── owner.py          # /links, /create_sheets
 │   └── stats.py          # /stats
 ├── jobs/
 │   ├── notify.py         # Еженедельные уведомления

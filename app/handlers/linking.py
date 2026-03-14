@@ -33,8 +33,7 @@ async def on_start(msg: Message, command: CommandObject, state: FSMContext) -> N
             "<b>Панель владельца</b>\n\n"
             "/links — ссылки для учеников\n"
             "/create_sheets — создать таблицы\n"
-            "/parse_users — статистика привязок\n"
-            "/stats — твоя статистика (как ученик)",
+            "/parse_users — статистика привязок",
             parse_mode="HTML",
         )
         return
@@ -164,11 +163,11 @@ async def on_unlink(msg: Message, users: UserService) -> None:
 
 @router.message(Command("help"))
 async def on_help(msg: Message) -> None:
-    await msg.answer(
-        "<b>Доступные команды:</b>\n"
-        "/start — начало привязки (через ссылку)\n"
-        "/stats — твоя статистика по ДЗ\n"
-        "/unlink — отвязаться\n"
-        "/help — эта справка",
-        parse_mode="HTML",
-    )
+    if (user := msg.from_user) and user.id == OWNER_TGID:
+        await msg.answer(
+            "<b>Доступные команды:</b>\n"
+            "/start — начало привязки (через ссылку)\n"
+            "/stats — твоя статистика по ДЗ\n"
+            "/unlink — отвязаться\n"
+            "/help — эта справка"
+        )

@@ -128,8 +128,8 @@ class TestParseJournal:
 
     def test_active_students_only(self) -> None:
         j = parse_journal(JOURNAL_RESPONSE)
-        assert len(j.students) == 1
-        assert j.students[0].id == 10
+        assert len(j.active_students) == 1
+        assert j.active_students[0].id == 10
 
     def test_best_work_in_journal(self) -> None:
         j = parse_journal(JOURNAL_RESPONSE)

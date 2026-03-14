@@ -139,8 +139,8 @@ class TestJournal:
             Student(id=2, name="Неактивный", count=0),
         ]
         j = self._make_journal([], students)
-        assert len(j.students) == 1
-        assert j.students[0].id == 1
+        assert len(j.active_students) == 1
+        assert j.active_students[0].id == 1
 
     def test_active_students_deduplication(self) -> None:
         students = [
@@ -148,4 +148,4 @@ class TestJournal:
             Student(id=1, name="Ученик", count=3),
         ]
         j = self._make_journal([], students)
-        assert len(j.students) == 1
+        assert len(j.active_students) == 1
