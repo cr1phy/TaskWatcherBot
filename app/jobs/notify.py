@@ -9,6 +9,11 @@ from ..services.user import UserService
 logger = structlog.get_logger()
 
 
+def _is_hw_done(student: Student, task_id: int) -> bool:
+    work = student.works.get(task_id)
+    return work is not None and work.score > 0
+
+
 async def notify_students(
     bot: Bot,
     users: UserService,
@@ -41,11 +46,10 @@ async def notify_students(
             )
 
     for group_number, chat_id in registered.items():
-        maybe_journal_group: Journal | None = journals.get(group_number)
-        if not maybe_journal_group:
+        maybe_journal: Journal | None = journals.get(group_number)
+        if not maybe_journal:
             continue
-        journal_group = maybe_journal_group
-        await _notify_group(bot, chat_id, journal_group)
+        await _notify_group(bot, chat_id, maybe_journal)
 
     for user in all_users:
         maybe_journal: Journal | None = journals.get(user.group_number)
@@ -74,7 +78,7 @@ async def _notify_group(bot: Bot, chat_id: int, journal: Journal) -> None:
 
     total_hw = len(journal.homeworks)
     for student in journal.active_students:
-        done = sum(1 for t in journal.homeworks if student.works.get(t.id))
+        done = sum(1 for t in journal.homeworks if _is_hw_done(student, t.id))
         not_done = total_hw - done
         if not_done:
             lines.append(f"— {student.name}: не сдано {not_done}/{total_hw}")
@@ -93,7 +97,7 @@ async def _notify_personal(
     student: Student,
     journal: Journal,
 ) -> None:
-    not_done = [t for t in journal.homeworks if not student.works.get(t.id)]
+    not_done = [t for t in journal.homeworks if not _is_hw_done(student, t.id)]
     if not not_done:
         return
 

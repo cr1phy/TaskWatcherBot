@@ -38,7 +38,9 @@ async def on_stats(
         return
 
     try:
-        journal = await asyncio.wait_for(cloudtext.get_journal(ct_group.id), timeout=10)
+        journal = await asyncio.wait_for(
+            cloudtext.get_journal(ct_group.id), timeout=10
+        )
     except asyncio.TimeoutError:
         await msg.answer("⏳ Бот сейчас занят, попробуй через пару минут.")
         return
@@ -62,20 +64,20 @@ async def on_stats(
         lines.append("<b>Домашние задания:</b>")
         for task in journal.homeworks:
             work = student.works.get(task.id)
-            if work:
+            if work and work.score > 0:
                 lines.append(
                     f"{task.homework_name}: {work.score}/{task.maximum_score} ({work.percent}%)"
                 )
             else:
-                lines.append(f"{task.homework_name}: не сдано")
+                lines.append(f"{task.homework_name}  — <b>НЕВЫПОЛНЕНО</b>")
 
     if journal.probes:
         lines.append("\n<b>Пробники:</b>")
         for task in journal.probes:
             work = student.works.get(task.id)
-            if work:
+            if work and work.score > 0:
                 lines.append(f"{task.probe_name}: {work.score}/29")
             else:
-                lines.append(f"{task.probe_name}: не сдан")
+                lines.append(f"{task.probe_name}  — <b>НЕВЫПОЛНЕНО</b>")
 
     await msg.answer("\n".join(lines), parse_mode="HTML")

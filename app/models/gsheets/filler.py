@@ -45,6 +45,10 @@ def stats_color(pct: int) -> dict[str, float]:
         return {"red": 0.87, "green": 0.36, "blue": 0.34}
 
 
+def is_done(work: Any) -> bool:
+    return work is not None and work.score > 0
+
+
 class SpreadsheetFiller:
     async def _run(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         loop = asyncio.get_event_loop()
@@ -87,7 +91,6 @@ class SpreadsheetFiller:
                 ]
             },
         )
-
         worksheet._properties["title"] = title
 
         await self._run(self._fill, spreadsheet, worksheet, group, journal)
@@ -106,7 +109,7 @@ class SpreadsheetFiller:
         sorted_sheets = sorted(
             sheets, key=lambda ws: parse_date(ws.title), reverse=True
         )
-        requests: list[dict[str, Any]] = [
+        requests = [
             {
                 "updateSheetProperties": {
                     "properties": {"sheetId": ws.id, "index": i},
@@ -141,9 +144,9 @@ class SpreadsheetFiller:
         num_probes = len(probes)
 
         journal_map: dict[str, Student] = {}
-        for journal_student in journal.students:
-            if journal_student.name not in journal_map:
-                journal_map[journal_student.name] = journal_student
+        for s in journal.students:
+            if s.name not in journal_map:
+                journal_map[s.name] = s
 
         hw_name_row = 1
         hw_maxball_row = 2
@@ -193,13 +196,16 @@ class SpreadsheetFiller:
                 student = journal_map.get(name)
                 work = student.works.get(task.id) if student else None
 
-                updates.append(
-                    {"range": f"{sc}{row}", "values": [[work.score if work else 0]]}
-                )
-                if work and task.maximum_score:
-                    pct = round(work.score / task.maximum_score * 100)
+                if is_done(work):
+                    pct = (
+                        round(work.score / task.maximum_score * 100)
+                        if task.maximum_score
+                        else 0
+                    )
+                    updates.append({"range": f"{sc}{row}", "values": [[work.score]]})
                     updates.append({"range": f"{pc}{row}", "values": [[f"{pct}%"]]})
                 else:
+                    updates.append({"range": f"{sc}{row}", "values": [[0]]})
                     updates.append({"range": f"{pc}{row}", "values": [["0%"]]})
 
         for j, name in enumerate(student_names):
@@ -227,11 +233,17 @@ class SpreadsheetFiller:
                 student = journal_map.get(name)
                 work = student.works.get(task.id) if student else None
 
-                primary = work.score if work else 0
-                secondary = primary_to_secondary(work.score) if work else 0
-
-                updates.append({"range": f"{pr}{row}", "values": [[primary]]})
-                updates.append({"range": f"{se}{row}", "values": [[secondary]]})
+                if is_done(work):
+                    updates.append({"range": f"{pr}{row}", "values": [[work.score]]})
+                    updates.append(
+                        {
+                            "range": f"{se}{row}",
+                            "values": [[primary_to_secondary(work.score)]],
+                        }
+                    )
+                else:
+                    updates.append({"range": f"{pr}{row}", "values": [[0]]})
+                    updates.append({"range": f"{se}{row}", "values": [[0]]})
 
         for j, name in enumerate(student_names):
             row = probe_students_start + j
@@ -253,9 +265,14 @@ class SpreadsheetFiller:
         for j, name in enumerate(student_names):
             stats_row = stats_students_start + j
             student = journal_map.get(name)
-            works = student.works if student else {}
 
-            done_hw = sum(1 for t in homeworks if t.id in works)
+            done_hw = 0
+            if student:
+                for t in homeworks:
+                    work = student.works.get(t.id)
+                    if is_done(work):
+                        done_hw += 1
+
             not_done = num_hw - done_hw
             percent = round(not_done / num_hw * 100) if num_hw else 0
 
@@ -265,6 +282,28 @@ class SpreadsheetFiller:
             updates.append({"range": f"F{stats_row}", "values": [[f"{percent}%"]]})
 
         retry_api(worksheet.batch_update, updates)
+
+        self._apply_styles(
+            spreadsheet,
+            worksheet,
+            sheet_id,
+            num_hw,
+            num_probes,
+            num_students,
+            hw_name_row,
+            hw_maxball_row,
+            hw_headers_row,
+            hw_students_start,
+            hw_students_end,
+            hw_end_col,
+            probe_name_row,
+            probe_headers_row,
+            probe_students_start,
+            probe_students_end,
+            probe_end_col,
+            stats_header_row,
+            stats_students_start,
+        )
 
         color_requests: list[dict[str, Any]] = []
 
@@ -292,7 +331,7 @@ class SpreadsheetFiller:
                 score_col = hw_start_col + i * 2
                 pct_col = score_col + 1
                 work = student.works.get(task.id) if student else None
-                if work and task.maximum_score:
+                if is_done(work) and task.maximum_score:
                     pct = round(work.score / task.maximum_score * 100)
                 else:
                     pct = 0
@@ -308,7 +347,7 @@ class SpreadsheetFiller:
                 pri_col = hw_start_col + i * 2
                 sec_col = pri_col + 1
                 work = student.works.get(task.id) if student else None
-                if work:
+                if is_done(work):
                     pct = round(work.score / 29 * 100)
                 else:
                     pct = 0
@@ -318,11 +357,12 @@ class SpreadsheetFiller:
         for j, name in enumerate(student_names):
             stats_row = stats_students_start + j
             student = journal_map.get(name)
-            done_hw = (
-                sum(1 for t in homeworks if student and student.works.get(t.id))
-                if student
-                else 0
-            )
+            done_hw = 0
+            if student:
+                for t in homeworks:
+                    work = student.works.get(t.id)
+                    if is_done(work):
+                        done_hw += 1
             not_done = num_hw - done_hw
             percent = round(not_done / num_hw * 100) if num_hw else 0
             color = stats_color(percent)
@@ -330,28 +370,6 @@ class SpreadsheetFiller:
 
         if color_requests:
             retry_api(spreadsheet.batch_update, {"requests": color_requests})
-
-        self._apply_styles(
-            spreadsheet,
-            worksheet,
-            sheet_id,
-            num_hw,
-            num_probes,
-            num_students,
-            hw_name_row,
-            hw_maxball_row,
-            hw_headers_row,
-            hw_students_start,
-            hw_students_end,
-            hw_end_col,
-            probe_name_row,
-            probe_headers_row,
-            probe_students_start,
-            probe_students_end,
-            probe_end_col,
-            stats_header_row,
-            stats_students_start,
-        )
 
     def _apply_styles(
         self,
@@ -390,6 +408,7 @@ class SpreadsheetFiller:
             bold: bool = False,
             italic: bool = False,
             center: bool = False,
+            vcenter: bool = False,
             font_size: int | None = None,
         ) -> dict[str, Any]:
             cell: dict[str, Any] = {"userEnteredFormat": {}}
@@ -410,6 +429,9 @@ class SpreadsheetFiller:
             if center:
                 cell["userEnteredFormat"]["horizontalAlignment"] = "CENTER"
                 fields.append("userEnteredFormat.horizontalAlignment")
+            if vcenter:
+                cell["userEnteredFormat"]["verticalAlignment"] = "MIDDLE"
+                fields.append("userEnteredFormat.verticalAlignment")
             return {
                 "repeatCell": {
                     "range": {
@@ -439,10 +461,7 @@ class SpreadsheetFiller:
             }
 
         def outer_border(r1: int, r2: int, c1: int, c2: int) -> dict[str, Any]:
-            border: dict[str, Any] = {
-                "style": "SOLID",
-                "colorStyle": {"rgbColor": black},
-            }
+            border = {"style": "SOLID", "colorStyle": {"rgbColor": black}}
             return {
                 "updateBorders": {
                     "range": {
@@ -460,6 +479,19 @@ class SpreadsheetFiller:
             }
 
         requests: list[dict[str, Any]] = []
+
+        max_data_col = max(hw_end_col, probe_end_col, 7)
+
+        requests.append(
+            fmt(
+                1,
+                stats_students_start + num_students,
+                1,
+                max_data_col,
+                center=True,
+                vcenter=True,
+            )
+        )
 
         requests.append(
             fmt(
@@ -494,9 +526,6 @@ class SpreadsheetFiller:
                 italic=True,
                 center=True,
             )
-        )
-        requests.append(
-            fmt(hw_students_start, hw_students_end, 2, hw_end_col, center=True)
         )
 
         requests.append(fmt(hw_students_start, hw_students_end, 1, 1, font_size=12))
@@ -534,7 +563,16 @@ class SpreadsheetFiller:
             )
         )
         requests.append(
-            fmt(probe_students_start, probe_students_end, 2, probe_end_col, center=True)
+            fmt(
+                probe_headers_row,
+                probe_headers_row,
+                2,
+                probe_end_col,
+                bg=white,
+                bold=True,
+                italic=True,
+                center=True,
+            )
         )
 
         for i in range(num_probes):
@@ -566,7 +604,6 @@ class SpreadsheetFiller:
             requests.append(merge(row, row, 2, 3))
             requests.append(merge(row, row, 4, 5))
             requests.append(merge(row, row, 6, 7))
-            requests.append(fmt(row, row, 2, 7, center=True))
 
         requests.append(
             {
@@ -583,7 +620,6 @@ class SpreadsheetFiller:
             }
         )
 
-        max_col = max(hw_end_col, probe_end_col, 7)
         requests.append(
             {
                 "autoResizeDimensions": {
@@ -591,7 +627,7 @@ class SpreadsheetFiller:
                         "sheetId": sheet_id,
                         "dimension": "COLUMNS",
                         "startIndex": 1,
-                        "endIndex": max_col,
+                        "endIndex": max_data_col,
                     }
                 }
             }
@@ -611,7 +647,30 @@ class SpreadsheetFiller:
                             "startIndex": start - 1,
                             "endIndex": start - 1 + count,
                         },
-                        "properties": {"pixelSize": 24},
+                        "properties": {"pixelSize": 32},
+                        "fields": "pixelSize",
+                    }
+                }
+            )
+
+        for row in [
+            hw_name_row,
+            hw_maxball_row,
+            hw_headers_row,
+            probe_name_row,
+            probe_headers_row,
+            stats_header_row,
+        ]:
+            requests.append(
+                {
+                    "updateDimensionProperties": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "dimension": "ROWS",
+                            "startIndex": row - 1,
+                            "endIndex": row,
+                        },
+                        "properties": {"pixelSize": 28},
                         "fields": "pixelSize",
                     }
                 }
