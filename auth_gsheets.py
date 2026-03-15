@@ -1,4 +1,4 @@
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore[import]
 import json
 
 SCOPES = [

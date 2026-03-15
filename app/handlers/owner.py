@@ -72,7 +72,6 @@ async def on_bot_joining(
     m = re.search(r"Группа\s*(\d+)", title)
 
     if not m:
-        # Самокик + DM владельцу
         await bot.send_message(
             OWNER_TGID,
             f"⚠️ Бот добавлен в чат «{title}» — название не соответствует формату 'Группа N'. Вышел.",
@@ -140,19 +139,48 @@ async def on_parse_users(
         return
 
     await bot.get_me()
-    lines = []
+    lines: list[str] = []
     for group_n, chat_id in all_groups.items():
-        participants = await tg_client.get_participants(chat_id)
+        participants = await tg_client.get_participants(chat_id)  # type: ignore[assignment]
         total = 0
         linked = 0
-        for p in participants:
-            if p.bot:
+        for p in participants:  # type: ignore[misc]
+            if p.bot:  # type: ignore[attr-defined]
                 continue
-            if p.id == OWNER_TGID:
+            if p.id == OWNER_TGID:  # type: ignore[attr-defined]
                 continue
             total += 1
-            if await users.exists(p.id):
+            if await users.exists(p.id):  # type: ignore[attr-defined]
                 linked += 1
         lines.append(f"Группа {group_n}: {linked}/{total} привязано")
 
     await msg.answer("\n".join(lines))
+
+
+@router.message(Command("test_notify"))
+async def on_test_notify(
+    msg: Message,
+    bot: Bot,
+    users: UserService,
+    groups: GroupRegistry,
+    cloudtext: CloudTextClient,
+) -> None:
+    await msg.answer("Запускаю тестовую рассылку...")
+    from ..jobs.notify import notify_students
+
+    await notify_students(bot=bot, users=users, groups=groups, cloudtext=cloudtext)
+    await msg.answer("✅ Готово.")
+
+
+@router.message(Command("test_sheets"))
+async def on_test_sheets(
+    msg: Message,
+    groups: GroupRegistry,
+    cloudtext: CloudTextClient,
+    gsheets: GSheetsClient,
+) -> None:
+    await msg.answer("Запускаю обновление таблиц...")
+    from ..jobs.sheets import update_sheets
+
+    await update_sheets(groups=groups, cloudtext=cloudtext, gsheets=gsheets)
+    await msg.answer("✅ Готово.")

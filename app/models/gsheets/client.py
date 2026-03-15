@@ -1,6 +1,6 @@
 import asyncio
 from functools import partial
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar
 
 import asyncpg
 import structlog
@@ -12,6 +12,8 @@ from ...models.cloudtext import Journal
 from ...models.cloudtext.models import Group
 from .filler import SpreadsheetFiller
 from .helpers import retry_api
+
+T = TypeVar("T")
 
 
 class GSheetsClient:
@@ -87,9 +89,9 @@ class GSheetsClient:
                     error=str(e),
                 )
 
-    async def _run(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    async def _run(self, func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, partial(func, *args, **kwargs))
+        return await loop.run_in_executor(None, partial(func, *args, **kwargs))  # type: ignore[return-value]
 
     async def _create_spreadsheet(self, title: str) -> Spreadsheet:
         assert self._account

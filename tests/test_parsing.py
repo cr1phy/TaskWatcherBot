@@ -9,7 +9,7 @@ from app.models.cloudtext.parsing import (
     parse_works,
 )
 
-GROUPS_RESPONSE = [
+GROUPS_RESPONSE: list[dict[str, Any]] = [
     {
         "id": 1,
         "name": "Группа 1",
@@ -37,7 +37,7 @@ GROUPS_RESPONSE = [
     },
 ]
 
-JOURNAL_RESPONSE = {
+JOURNAL_RESPONSE: dict[str, dict[str, Any]] = {
     "journal": {
         "group": {"id": 1, "name": "Группа 1"},
         "tasks": [
@@ -90,7 +90,7 @@ class TestParseGroups:
 
 class TestParseWorks:
     def test_best_work_selected(self) -> None:
-        works_data = [
+        works_data: list[dict[str, Any]] = [
             {"task_id": 100, "ball": 6, "max_ball": 10, "status": 4},
             {"task_id": 100, "ball": 8, "max_ball": 10, "status": 4},
         ]
@@ -98,20 +98,22 @@ class TestParseWorks:
         assert works[100].score == 8
 
     def test_none_ball_treated_as_zero(self) -> None:
-        works_data = [
+        works_data: list[dict[str, Any]] = [
             {"task_id": 100, "ball": None, "max_ball": 10, "status": 1},
         ]
         works = parse_works(works_data)
         assert works[100].score == 0
 
     def test_dict_format(self) -> None:
-        works_data = {"100": [{"task_id": 100, "ball": 5, "max_ball": 10, "status": 4}]}
+        works_data: dict[str, list[dict[str, Any]]] = {
+            "100": [{"task_id": 100, "ball": 5, "max_ball": 10, "status": 4}]
+        }
         works = parse_works(works_data)
         assert 100 in works
         assert works[100].score == 5
 
     def test_empty_dict_value_skipped(self) -> None:
-        works_data: list[dict[str, Any]] | dict[str, list] = {"100": []}
+        works_data: list[dict[str, Any]] | dict[str, list[dict[str, Any]]] = {"100": []}
         works = parse_works(works_data)
         assert 100 not in works
 
@@ -164,7 +166,7 @@ class TestParseTaskMaxBall:
         assert parse_task_max_ball({}) == 0
 
     def test_fields_max_ball_sum(self) -> None:
-        detail = {
+        detail: dict[str, dict[str, Any]] = {
             "task": {
                 "fields": [
                     {"max_ball": 3, "type": 1},
@@ -175,7 +177,7 @@ class TestParseTaskMaxBall:
         assert parse_task_max_ball(detail) == 8
 
     def test_criteria_fallback(self) -> None:
-        detail = {
+        detail: dict[str, dict[str, Any]] = {
             "task": {
                 "fields": [
                     {
@@ -192,7 +194,7 @@ class TestParseTaskMaxBall:
         assert parse_task_max_ball(detail) == 5
 
     def test_question_count_fallback(self) -> None:
-        detail = {
+        detail: dict[str, dict[str, Any]] = {
             "task": {
                 "fields": [
                     {"type": 1},

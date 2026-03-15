@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:17
+    shm_size: 128mb
     restart: always
     environment:
       POSTGRES_USER: bot
@@ -34,15 +35,6 @@ services:
     depends_on:
       - postgres
       - redis
-    develop:
-      watch:
-        - action: sync
-          path: .
-          target: /app
-          ignore:
-            - .venv/
-        - action: rebuild
-          path: ./pyproject.toml
 
 networks:
   public:
