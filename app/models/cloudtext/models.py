@@ -186,10 +186,10 @@ class Journal(GroupBase):
 
     @property
     def active_students(self) -> list[Student]:
-        seen: set[int] = set()
+        seen: set[str] = set()
         result: list[Student] = []
         for student in self.students:
-            if student.id not in seen and (student.count > 0 or student.works):
-                seen.add(student.id)
+            if student.name not in seen and (student.count > 0 or student.works):
+                seen.add(student.name)
                 result.append(student)
         return result

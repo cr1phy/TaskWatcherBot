@@ -60,7 +60,7 @@ async def notify_students(
         if not name:
             continue
 
-        matches = [s for s in journal.active_students if s.name == name]
+        matches = [s for s in journal.students if s.name == name]
         if len(matches) != 1:
             await logger.awarning(
                 "ambiguous_student",
