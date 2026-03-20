@@ -48,7 +48,7 @@ class TestNotifyGroup:
 
         await _notify_group(bot, 123, journal)
         text = bot.send_message.call_args[0][1]
-        assert "не сдано 2/2" in text
+        assert "сдано 0/2" in text
 
     @pytest.mark.asyncio
     async def test_silently_handles_send_error(self) -> None:

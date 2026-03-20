@@ -8,6 +8,7 @@ from pydantic import (
     ConfigDict,
     Field,
     computed_field,
+    field_validator,
 )
 
 MONTHS = [
@@ -155,6 +156,11 @@ class Student(IdModel):
     works: dict[int, Work] = Field(default_factory=dict)  # type: ignore
     count: int = 0
     avg: int = 0
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_group_suffix(cls, v: str) -> str:
+        return re.sub(r"_Гр\.\d+$", "", v)
 
 
 class Group(GroupBase):

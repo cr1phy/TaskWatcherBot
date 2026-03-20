@@ -33,16 +33,16 @@ def pct_color(pct: int) -> dict[str, float]:
 
 
 def stats_color(pct: int) -> dict[str, float]:
-    if pct <= 10:
-        return {"red": 0.42, "green": 0.76, "blue": 0.44}
-    elif pct <= 30:
-        return {"red": 0.72, "green": 0.88, "blue": 0.53}
-    elif pct <= 50:
-        return {"red": 0.95, "green": 0.76, "blue": 0.46}
-    elif pct <= 70:
-        return {"red": 0.92, "green": 0.6, "blue": 0.6}
-    else:
+    if pct <= 30:
         return {"red": 0.87, "green": 0.36, "blue": 0.34}
+    elif pct <= 50:
+        return {"red": 0.92, "green": 0.6, "blue": 0.6}
+    elif pct <= 70:
+        return {"red": 0.95, "green": 0.76, "blue": 0.46}
+    elif pct <= 90:
+        return {"red": 0.72, "green": 0.88, "blue": 0.53}
+    else:
+        return {"red": 0.42, "green": 0.76, "blue": 0.44}
 
 
 def is_done(work: Any) -> bool:
@@ -253,13 +253,13 @@ class SpreadsheetFiller:
             {"range": f"A{stats_header_row}", "values": [["Общая статистика"]]}
         )
         updates.append(
-            {"range": f"B{stats_header_row}", "values": [["Кол-во невыполненных ДЗ"]]}
+            {"range": f"B{stats_header_row}", "values": [["Кол-во выполненных ДЗ"]]}
         )
         updates.append(
             {"range": f"D{stats_header_row}", "values": [["Всего ДЗ было выдано"]]}
         )
         updates.append(
-            {"range": f"F{stats_header_row}", "values": [["Не выполнено в процентах"]]}
+            {"range": f"F{stats_header_row}", "values": [["Выполнено в процентах"]]}
         )
 
         for j, name in enumerate(student_names):
@@ -273,11 +273,10 @@ class SpreadsheetFiller:
                     if is_done(work):
                         done_hw += 1
 
-            not_done = num_hw - done_hw
-            percent = round(not_done / num_hw * 100) if num_hw else 0
+            percent = round(done_hw / num_hw * 100) if num_hw else 0
 
             updates.append({"range": f"A{stats_row}", "values": [[name]]})
-            updates.append({"range": f"B{stats_row}", "values": [[not_done]]})
+            updates.append({"range": f"B{stats_row}", "values": [[done_hw]]})
             updates.append({"range": f"D{stats_row}", "values": [[num_hw]]})
             updates.append({"range": f"F{stats_row}", "values": [[f"{percent}%"]]})
 
@@ -363,8 +362,7 @@ class SpreadsheetFiller:
                     work = student.works.get(t.id)
                     if is_done(work):
                         done_hw += 1
-            not_done = num_hw - done_hw
-            percent = round(not_done / num_hw * 100) if num_hw else 0
+            percent = round(done_hw / num_hw * 100) if num_hw else 0
             color = stats_color(percent)
             color_requests.append(set_range_color(stats_row, 2, 7, color))
 

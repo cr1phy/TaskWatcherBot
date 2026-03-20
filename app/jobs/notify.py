@@ -79,9 +79,8 @@ async def _notify_group(bot: Bot, chat_id: int, journal: Journal) -> None:
     total_hw = len(journal.homeworks)
     for student in journal.active_students:
         done = sum(1 for t in journal.homeworks if _is_hw_done(student, t.id))
-        not_done = total_hw - done
-        if not_done:
-            lines.append(f"— {student.name}: не сдано {not_done}/{total_hw}")
+        if done < total_hw:
+            lines.append(f"— {student.name}: сдано {done}/{total_hw}")
         else:
             lines.append(f"— {student.name}: всё сдано ✅")
 
