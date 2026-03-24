@@ -30,7 +30,6 @@ async def notify_students(
 
     registered = await groups.get_all()
     all_users = await users.get_all()
-
     journals: dict[int, Journal] = {}
     for group_number, ct_id in {
         n: group_id_map[n] for n in registered if n in group_id_map

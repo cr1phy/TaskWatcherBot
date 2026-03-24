@@ -100,7 +100,7 @@ class GroupStudent(IdModel):
         parts = [self.last_name, self.first_name]
         if self.middle_name:
             parts.append(self.middle_name)
-        return " ".join(parts)
+        return re.sub(r"_Гр\.\d+$", "", " ".join(parts))
 
     @property
     def name(self) -> str:  # type: ignore
